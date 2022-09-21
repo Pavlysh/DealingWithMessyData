@@ -38,6 +38,7 @@ WORKS ON POSTGREESQL 9.6
 
 WITH
 -- separate full_name with the space delimeter
+
 devidedNames
 AS
 (
