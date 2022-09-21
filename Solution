@@ -1,0 +1,60 @@
+THE SOLUTION WORKS ON POSTGREESQL 9.6
+
+WITH
+-- separate full_name with the space delimeter
+
+devidedNames
+AS
+(
+
+SELECT arr[1] as ar1,arr[2] as ar2, 
+       arr[3] as ar3, full_name, credit_limit from
+(
+select regexp_split_to_array(initcap(full_name) ,' ') as arr,initcap( full_name) as full_name, credit_limit from prospects)
+as subq
+)
+,
+cleanedNames 
+--  if full_name starts form 'MS.', 'MISS', 'Mr.', take the second item of array
+--  if there is a ',' in the full_name, then the last_name goes first in the  full_name
+-- erace comma in the last_name and first_name
+AS
+(
+SELECT  
+CASE WHEN position('.' in ar1)>0 or position('Miss' in ar1)>0 or position(',' in ar1)>0 THEN
+     trim(regexp_replace( ar2,'[,]+','','g')) 
+     Else 
+     trim(regexp_replace( ar1,'[,]+','','g'))
+END as first_name,
+CASE WHEN position('.' in ar1)>0 or position('Miss' in ar1)>0  THEN
+     trim(regexp_replace( ar3,'[,]+','','g'))
+     WHEN  position(',' in ar1)>0 THEN 
+     trim(regexp_replace( ar1,'[,]+','','g'))
+     Else 
+     trim(regexp_replace( ar2,'[,]+','','g'))
+END as last_name, full_name, credit_limit
+FROM  devidedNames order by first_name, last_name
+),
+GroupedNames
+--grouping the same customers and defining the highest credit_limit
+AS
+(
+SELECT first_name as first_name ,
+       last_name as last_name, 
+       
+       MAX(cleanedNames.credit_limit) as new_limit from cleanedNames 
+GROUP BY first_name ,
+  last_name
+  ORDER BY first_name , last_name)
+
+-- the resulting table showing only those customers , who have new_limit > then old_limit 
+SELECT CUS.first_name , CUS.Last_name ,
+credit_limit as old_limit , New_limit
+FROM GroupedNames
+RIGHT JOIN customers as CUS
+ON UPPER(GroupedNames.first_name) =UPPER(CUS.first_name )
+and UPPER( GroupedNames.last_name) =UPPER(cus.last_name)
+WHERE GroupedNames.new_limit>=cus.credit_limit
+ORDER BY first_name,last_name
+
+
